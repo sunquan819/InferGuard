@@ -10,6 +10,8 @@
 | `shift_canary_traffic` | `POST /routes/canary` | 单服务路由写权限 | 必须 idempotency_key | 写前后比例；失败恢复旧比例 |
 | `rollback_model_revision` | `POST /models/rollback` | 白名单 revision 写权限 | 必须 idempotency_key | 保存 rollback_ref；失败升级人工 |
 | `run_quality_probe` | `POST /eval/golden` | 脱敏数据集执行权限 | dataset/version 固定 | 保存评测版本；失败不得关闭事故 |
+| `search` | DataHub MCP | Catalog 全局搜索只读 | 查询可安全重试 | 保存查询参数与命中资产 |
+| `get_entities` | DataHub MCP | 指定 URN 元数据只读 | 批量读取可安全重试 | 保存 Owner、Schema、Domain 和健康上下文 |
+| `get_lineage` | DataHub MCP | 指定 URN 血缘只读 | 方向与 hop 固定 | 保存上游因果链和下游影响面 |
 
 鉴权计划：AgentTeams Worker 只持有 Higress consumer token，不接触真实 API Key；路由按 Identity 和 Tool 细分权限。所有写调用必须携带 incident_id、action_id、policy_version 和 idempotency_key。
-

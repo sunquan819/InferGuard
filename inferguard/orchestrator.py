@@ -4,6 +4,7 @@ from typing import Any
 
 from .agents import RCAAgent, RecoveryAgent, RemediationAgent, SafetyAgent
 from .backend import SimulatedOperationsBackend
+from .datahub import DataHubContextProvider, ScenarioDataHubContextProvider
 from .models import Incident, IncidentStatus
 from .skills import correlate_alerts
 
@@ -11,8 +12,13 @@ from .skills import correlate_alerts
 class IncidentCommander:
     """Local equivalent of the AgentTeams Manager coordination contract."""
 
-    def __init__(self, scenario: dict[str, Any]):
+    def __init__(
+        self,
+        scenario: dict[str, Any],
+        context_provider: DataHubContextProvider | None = None,
+    ):
         self.backend = SimulatedOperationsBackend(scenario)
+        self.context_provider = context_provider or ScenarioDataHubContextProvider(scenario)
         self.rca = RCAAgent()
         self.safety = SafetyAgent()
         self.remediation = RemediationAgent()
@@ -24,7 +30,7 @@ class IncidentCommander:
         # persist an incident context artifact for Manager and Workers.
         object.__setattr__(incident, "_scenario_context", self.backend.scenario)
         incident.record("Incident Commander", "incident_opened")
-        self.rca.run(incident, self.backend)
+        self.rca.run(incident, self.backend, self.context_provider)
         self.remediation.plan(incident)
 
         if not self.safety.authorize(incident):

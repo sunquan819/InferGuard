@@ -1,0 +1,90 @@
+{
+  "name": "DataHub customer feature pipeline schema regression",
+  "alerts": [
+    {"source": "airflow", "service": "customer-ltv-features", "signal": "dag_failure_rate", "value": 0.58, "threshold": 0.01, "timestamp": "2026-07-22T03:10:00Z", "fingerprint": "customer-ltv-features:dag-failure"},
+    {"source": "airflow", "service": "customer-ltv-features", "signal": "dag_failure_rate", "value": 0.61, "threshold": 0.01, "timestamp": "2026-07-22T03:10:30Z", "fingerprint": "customer-ltv-features:dag-failure"},
+    {"source": "dbt", "service": "customer-ltv-features", "signal": "model_build_failures", "value": 7, "threshold": 0, "timestamp": "2026-07-22T03:10:40Z", "fingerprint": "customer-ltv-features:dbt-build"},
+    {"source": "data-quality", "service": "customer-ltv-features", "signal": "freshness_minutes", "value": 185, "threshold": 30, "timestamp": "2026-07-22T03:10:50Z", "fingerprint": "customer-ltv-features:freshness"},
+    {"source": "feature-store", "service": "customer-ltv-features", "signal": "feature_availability", "value": 0.35, "threshold": 0.98, "timestamp": "2026-07-22T03:11:00Z", "fingerprint": "customer-ltv-features:availability"},
+    {"source": "model-monitor", "service": "customer-ltv-features", "signal": "prediction_success_rate", "value": 0.72, "threshold": 0.99, "timestamp": "2026-07-22T03:11:10Z", "fingerprint": "customer-ltv-features:prediction"},
+    {"source": "data-quality", "service": "customer-ltv-features", "signal": "freshness_minutes", "value": 181, "threshold": 30, "timestamp": "2026-07-22T03:11:20Z", "fingerprint": "customer-ltv-features:freshness"}
+  ],
+  "runtime_state": {
+    "data_freshness_minutes": 185,
+    "pipeline_success_rate": 0.42,
+    "feature_availability": 0.35,
+    "schema_version": 4,
+    "pod_restarts": 0
+  },
+  "evidence": [
+    {"kind": "pipeline_log", "source": "airflow/customer_ltv_daily", "observed_at": "2026-07-22T03:09:10Z", "summary": "customer_ltv_features failed with unresolved column customer_id", "data": {"failed_task": "build_customer_ltv_features", "error": "COLUMN_NOT_FOUND: customer_id"}},
+    {"kind": "deployment", "source": "schema-registry/raw_orders", "observed_at": "2026-07-22T03:02:00Z", "summary": "raw_orders schema v4 renamed customer_id to customer_key without a compatibility alias", "data": {"previous_version": 3, "current_version": 4, "removed_field": "customer_id", "replacement_field": "customer_key"}},
+    {"kind": "query", "source": "dbt/stg_orders", "observed_at": "2026-07-22T03:10:20Z", "summary": "the deployed dbt model still selects customer_id from raw_orders", "data": {"model": "stg_orders", "manifest_revision": "7f83c1a"}},
+    {"kind": "warehouse_health", "source": "snowflake/production", "observed_at": "2026-07-22T03:10:40Z", "summary": "warehouse availability and unrelated workloads are healthy", "data": {"availability": 0.9999, "unrelated_query_success_rate": 0.999}},
+    {"kind": "model_quality", "source": "model-monitor/churn-risk-v3", "observed_at": "2026-07-22T03:11:00Z", "summary": "model quality is stable for requests with complete features", "data": {"quality_score": 0.94, "quality_threshold": 0.9}}
+  ],
+  "datahub_context": {
+    "query": "/q customer_ltv_features",
+    "primary_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_ltv_features,PROD)",
+    "evidence": [
+      {
+        "tool": "search",
+        "kind": "datahub_search",
+        "observed_at": "2026-07-22T03:11:05Z",
+        "summary": "DataHub search resolved customer_ltv_features as the primary failing production asset",
+        "arguments": {"query": "/q customer_ltv_features"},
+        "result": {"urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_ltv_features,PROD)", "platform": "snowflake", "environment": "PROD"}
+      },
+      {
+        "tool": "get_entities",
+        "kind": "datahub_entity",
+        "observed_at": "2026-07-22T03:11:06Z",
+        "summary": "DataHub metadata confirms the feature dataset expects customer_id and is owned by Customer Intelligence",
+        "arguments": {"urns": ["urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_ltv_features,PROD)"]},
+        "result": {"owner": "Customer Intelligence", "schema_fields": ["customer_id", "ltv_30d", "ltv_90d"], "domain": "Customer Analytics"}
+      },
+      {
+        "tool": "get_lineage",
+        "kind": "datahub_lineage",
+        "observed_at": "2026-07-22T03:11:07Z",
+        "summary": "DataHub upstream lineage connects raw_orders v4 through stg_orders to the failing feature dataset",
+        "arguments": {"urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_ltv_features,PROD)", "direction": "upstream", "max_hops": 3},
+        "result": {"assets": ["raw.raw_orders", "staging.stg_orders", "analytics.customer_ltv_features"], "hops": 2, "changed_asset": "raw.raw_orders"}
+      },
+      {
+        "tool": "get_lineage",
+        "kind": "datahub_impact",
+        "observed_at": "2026-07-22T03:11:08Z",
+        "summary": "DataHub downstream lineage identifies the churn model and retention dashboard in the blast radius",
+        "arguments": {"urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_ltv_features,PROD)", "direction": "downstream", "max_hops": 3},
+        "result": {"assets": ["mlFeatureTable.customer_ltv", "mlModel.churn-risk-v3", "dashboard.retention-health"], "affected_assets": 3}
+      }
+    ]
+  },
+  "diagnosis": {
+    "hypotheses": [
+      {"cause": "breaking raw_orders schema rename invalidated the customer feature transformation", "base_confidence": 0.62, "supporting_evidence": ["EV-001", "EV-002", "EV-003", "DH-002", "DH-003"], "contradicting_evidence": []},
+      {"cause": "production warehouse availability failure", "base_confidence": 0.31, "supporting_evidence": [], "contradicting_evidence": ["EV-004"]},
+      {"cause": "churn model quality regression", "base_confidence": 0.28, "supporting_evidence": [], "contradicting_evidence": ["EV-005"]}
+    ]
+  },
+  "remediation": {
+    "version": "1",
+    "action": "rollback_upstream_schema",
+    "parameters": {"dataset": "raw.raw_orders", "from_version": 4, "to_version": 3, "restore_field": "customer_id"},
+    "risk": "L1-low-reversible",
+    "reversible": true,
+    "rollback_action": "restore raw_orders schema v4 after downstream consumers migrate to customer_key",
+    "expected_effect": "freshness < 30 minutes, pipeline success >= 99%, feature availability >= 98%",
+    "effect": {"data_freshness_minutes": 8, "pipeline_success_rate": 1.0, "feature_availability": 0.997, "schema_version": 3}
+  },
+  "slo": {
+    "data_freshness_minutes": {"operator": "lt", "target": 30},
+    "pipeline_success_rate": {"operator": "gte", "target": 0.99},
+    "feature_availability": {"operator": "gte", "target": 0.98}
+  },
+  "learning": {
+    "preventive_action": "Add a DataHub lineage-aware schema compatibility gate before publishing breaking changes to production datasets.",
+    "runbook_candidate": "When a feature pipeline reports a missing column, use DataHub entity metadata and upstream lineage to identify the changed producer, quantify downstream impact, restore the compatible schema, and verify freshness plus feature availability before closing the incident."
+  }
+}

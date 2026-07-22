@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .datahub import MCPDataHubContextProvider, ScenarioDataHubContextProvider
 from .orchestrator import IncidentCommander
 
 
@@ -11,9 +12,16 @@ def load_scenario(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def run_demo(scenario_path: Path, output_dir: Path) -> int:
+def run_demo(scenario_path: Path, output_dir: Path, datahub_mode: str) -> int:
     scenario = load_scenario(scenario_path)
-    incident, postmortem = IncidentCommander(scenario).run(scenario["alerts"])
+    context_provider = (
+        MCPDataHubContextProvider(scenario)
+        if datahub_mode == "mcp"
+        else ScenarioDataHubContextProvider(scenario)
+    )
+    incident, postmortem = IncidentCommander(
+        scenario, context_provider=context_provider
+    ).run(scenario["alerts"])
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "incident.json").write_text(
         json.dumps(incident.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
@@ -26,6 +34,10 @@ def run_demo(scenario_path: Path, output_dir: Path) -> int:
         "confidence": incident.hypotheses[0].confidence,
         "verification": incident.verification.passed if incident.verification else None,
         "trace_events": len(incident.trace),
+        "datahub_mode": datahub_mode,
+        "datahub_evidence": len(
+            [item for item in incident.evidence if item.source.startswith("datahub-mcp/")]
+        ),
         "artifacts": str(output_dir.resolve()),
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
@@ -40,13 +52,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--scenario", type=Path, default=Path("scenarios/inference_kv_cache_regression.json")
     )
     demo.add_argument("--output", type=Path, default=Path("artifacts/latest"))
+    demo.add_argument(
+        "--datahub-mode",
+        choices=("fixture", "mcp"),
+        default="fixture",
+        help="use replayed DataHub context or the official live MCP server",
+    )
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
     if args.command == "demo":
-        return run_demo(args.scenario, args.output)
+        return run_demo(args.scenario, args.output, args.datahub_mode)
     return 1
 
 

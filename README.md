@@ -1,4 +1,42 @@
-# InferGuard
+# InferGuard DataOps
+
+**A context-aware, reversible multi-agent incident response system powered by DataHub.**
+
+InferGuard DataOps correlates noisy DataOps alerts, retrieves trusted metadata and lineage through the DataHub MCP Server, ranks evidence-backed root causes, proposes a reversible remediation, verifies recovery against explicit SLOs, and writes an auditable postmortem.
+
+This branch is the DataHub Agent Hackathon implementation. DataHub is part of the reasoning path: the Data Context Analyst calls `search`, `get_entities`, and `get_lineage` to identify the failing asset, its owner, the changed upstream producer, and the downstream blast radius.
+
+## DataHub demo
+
+Run the reproducible scenario without credentials:
+
+```powershell
+python -m unittest discover -s tests -v
+python -m inferguard.cli demo `
+  --scenario scenarios/datahub_customer_features_schema_break.json `
+  --datahub-mode fixture `
+  --output artifacts/datahub-latest
+```
+
+The scenario replays a breaking `raw_orders` schema rename that causes a customer feature pipeline to fail. DataHub context connects the producer change to the failed dataset and exposes the churn model and retention dashboard in the downstream blast radius.
+
+For a real DataHub Core or DataHub Cloud instance, install the optional MCP client and run the same scenario in live mode:
+
+```powershell
+pip install -e ".[datahub]"
+$env:DATAHUB_GMS_URL = "http://localhost:8080"
+$env:DATAHUB_GMS_TOKEN = "<personal-access-token>"
+python -m inferguard.cli demo `
+  --scenario scenarios/datahub_customer_features_schema_break.json `
+  --datahub-mode mcp `
+  --output artifacts/datahub-live
+```
+
+Live mode starts the official `mcp-server-datahub` process and records every MCP tool name, argument, result, and resulting decision in `incident.json`. Secrets are passed only through environment variables and are never written to incident artifacts.
+
+See [DataHub integration](docs/datahub-integration.md) for the architecture, safety boundary, and live setup.
+
+## 原始 InferGuard 能力
 
 **面向 AI 推理服务的可验证、可回滚零人工运维多 Agent 系统。**
 
@@ -6,7 +44,7 @@ InferGuard 将网关、推理引擎、GPU、Kubernetes、Trace 和质量探针�
 
 当前版本是可验证 PoC：零外部依赖、零云密钥，使用确定性仿真工具跑通完整链路。工具边界与未来 MCP Server 保持一致，后续可替换为 Higress、vLLM、Prometheus、Kubernetes 和 AgentLoop。
 
-## 当前 Demo
+## 原始推理服务 Demo
 
 场景：`qwen-serving-v2` 灰度版本把 `max_model_len` 从 8192 提升到 32768，KV Cache 达到 99%，导致请求抢占、TTFT 和 5xx 激增。系统确认 GPU 硬件正常、质量没有退化，并将失败 Trace 与 v2 路由对齐后，按策略回切灰度流量至 v1；最后验证错误率、TTFT 和质量分数。
 

@@ -28,7 +28,7 @@ def correlate_alerts(raw_alerts: list[dict[str, Any]]) -> Incident:
     ).hexdigest()[:10]
     incident = Incident(
         incident_id=f"INC-{digest.upper()}",
-        title=f"{service} error rate and latency degradation",
+        title=f"{service} multi-signal production degradation",
         service=service,
         status=IncidentStatus.DETECTED,
         alerts=alerts,

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .backend import SimulatedOperationsBackend
+from .datahub import DataHubContextProvider
 from .models import Incident, IncidentStatus
 from .skills import (
     authorize_action,
@@ -25,6 +26,11 @@ SIGNAL_ANALYST = AgentIdentity("Signal Analyst", "alert correlation", ("alerts:r
 RCA_INVESTIGATOR = AgentIdentity(
     "RCA Investigator", "evidence-backed diagnosis", ("metrics:read", "logs:read", "deployments:read")
 )
+DATA_CONTEXT_ANALYST = AgentIdentity(
+    "Data Context Analyst",
+    "DataHub metadata and lineage enrichment",
+    ("datahub:search", "datahub:entities:read", "datahub:lineage:read"),
+)
 SAFETY_GOVERNOR = AgentIdentity(
     "Safety Governor", "policy and authorization", ("policy:read", "approval:issue")
 )
@@ -37,8 +43,24 @@ RECOVERY_LEARNER = AgentIdentity(
 
 
 class RCAAgent:
-    def run(self, incident: Incident, backend: SimulatedOperationsBackend) -> None:
+    def run(
+        self,
+        incident: Incident,
+        backend: SimulatedOperationsBackend,
+        context_provider: DataHubContextProvider | None = None,
+    ) -> None:
         collect_incident_evidence(incident, backend)
+        if context_provider is not None:
+            context_evidence = context_provider.collect(incident)
+            incident.evidence.extend(context_evidence)
+            if context_evidence:
+                incident.record(
+                    DATA_CONTEXT_ANALYST.name,
+                    "datahub_context_collected",
+                    evidence_ids=[item.evidence_id for item in context_evidence],
+                    tools=[item.data["mcp_tool"] for item in context_evidence],
+                    modes=sorted({item.data["mode"] for item in context_evidence}),
+                )
         rank_root_causes(incident)
 
 

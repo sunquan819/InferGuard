@@ -14,6 +14,7 @@ class SimulatedOperationsBackend:
         "shift_canary_traffic",
         "update_config",
         "restart_single_pod",
+        "rollback_upstream_schema",
     }
 
     def __init__(self, scenario: dict[str, Any]):

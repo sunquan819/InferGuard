@@ -35,6 +35,17 @@
 - **Decision Boundary**：Top-1 置信度不足 0.70 时不得触发自动修复。
 - **Trace**：记录查询、证据 ID、候选排序与缺失证据。
 
+## Data Context Analyst
+
+- **Name**：`data-context-analyst`
+- **Role**：通过 DataHub 补充数据资产、Schema、Owner 与上下游血缘上下文。
+- **Capabilities**：调用 `search`、`get_entities`、`get_lineage` 只读工具；不能修改 DataHub 元数据或执行生产变更。
+- **Inputs**：Incident 服务名、DataHub 主资产 URN 和查询范围。
+- **Outputs**：`DH-*` Evidence、上游根因链路和下游影响面。
+- **Dependencies**：DataHub 开源平台、官方 DataHub MCP Server。
+- **Decision Boundary**：仅提供证据；无权批准修复或独立宣布根因成立。
+- **Trace**：记录 MCP 工具名、脱敏参数、结果、运行模式和证据 ID。
+
 ## Safety Governor
 
 - **Name**：`safety-governor`
@@ -67,4 +78,3 @@
 - **Dependencies**：`verify-recovery`、`build-postmortem`、指标与知识库 MCP。
 - **Decision Boundary**：任一硬性 SLO 失败即判失败并触发回滚。
 - **Trace**：保存每个 SLO 结果、最终决议和知识写入引用。
-
