@@ -4,7 +4,7 @@
 
 InferGuard 将网关、推理引擎、GPU、Kubernetes、Trace 和质量探针的信号归并为一个事故，由不同职能 Agent 完成证据收集、根因排序、策略授权、安全修复、独立恢复验证和事故复盘。系统不会把“命令执行成功”等同于“服务恢复成功”；只有性能、可用性和回答质量 SLO 同时通过，事故才会关闭。
 
-当前版本是初赛可验证 PoC：零外部依赖、零云密钥，使用确定性仿真工具跑通完整链路。工具边界与未来 MCP Server 保持一致，后续可替换为 Higress、vLLM、Prometheus、Kubernetes 和 AgentLoop。
+当前版本是可验证 PoC：零外部依赖、零云密钥，使用确定性仿真工具跑通完整链路。工具边界与未来 MCP Server 保持一致，后续可替换为 Higress、vLLM、Prometheus、Kubernetes 和 AgentLoop。
 
 ## 当前 Demo
 
