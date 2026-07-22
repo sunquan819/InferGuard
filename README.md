@@ -24,7 +24,7 @@ For a real DataHub Core or DataHub Cloud instance, install the optional MCP clie
 
 ```powershell
 pip install -e ".[datahub]"
-$env:DATAHUB_GMS_URL = "http://localhost:8080"
+$env:DATAHUB_GMS_URL = "http://localhost:18080"
 $env:DATAHUB_GMS_TOKEN = "<personal-access-token>"
 python -m inferguard.cli demo `
   --scenario scenarios/datahub_customer_features_schema_break.json `

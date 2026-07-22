@@ -56,7 +56,7 @@ python -m inferguard.cli demo `
 
 ```powershell
 pip install -e ".[datahub]"
-$env:DATAHUB_GMS_URL = "http://localhost:8080"
+$env:DATAHUB_GMS_URL = "http://localhost:18080"
 $env:DATAHUB_GMS_TOKEN = "<personal-access-token>"
 python -m inferguard.cli demo `
   --scenario scenarios/datahub_customer_features_schema_break.json `
@@ -65,6 +65,13 @@ python -m inferguard.cli demo `
 ```
 
 The scenario's `datahub_context.primary_urn` must exist in the connected catalog. Tokens remain in the process environment and are not copied into logs, trace events, or generated artifacts.
+
+For the local demo environment, seed the matching metadata graph after running
+`datahub init`:
+
+```powershell
+python scripts/seed_datahub_demo.py
+```
 
 ## Evidence produced
 
