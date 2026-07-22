@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inferguard"
+version = "0.1.0"
+description = "A verifiable and reversible multi-agent incident response demo"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+
+[project.scripts]
+inferguard = "inferguard.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["inferguard*"]

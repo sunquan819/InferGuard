@@ -1,0 +1,301 @@
+{
+  "incident_id": "INC-9E09B42554",
+  "title": "qwen-inference error rate and latency degradation",
+  "service": "qwen-inference",
+  "status": "recovered",
+  "alerts": [
+    {
+      "source": "higress",
+      "service": "qwen-inference",
+      "signal": "gateway_5xx_rate",
+      "value": 0.092,
+      "threshold": 0.01,
+      "timestamp": "2026-07-22T02:10:00Z",
+      "fingerprint": "qwen-inference:5xx"
+    },
+    {
+      "source": "higress",
+      "service": "qwen-inference",
+      "signal": "gateway_5xx_rate",
+      "value": 0.088,
+      "threshold": 0.01,
+      "timestamp": "2026-07-22T02:10:30Z",
+      "fingerprint": "qwen-inference:5xx"
+    },
+    {
+      "source": "opentelemetry",
+      "service": "qwen-inference",
+      "signal": "p99_ttft_ms",
+      "value": 4200,
+      "threshold": 800,
+      "timestamp": "2026-07-22T02:10:40Z",
+      "fingerprint": "qwen-inference:ttft"
+    },
+    {
+      "source": "vllm",
+      "service": "qwen-inference",
+      "signal": "kv_cache_preemption_rate",
+      "value": 0.37,
+      "threshold": 0.05,
+      "timestamp": "2026-07-22T02:10:50Z",
+      "fingerprint": "qwen-inference:kv-preemption"
+    },
+    {
+      "source": "kubernetes",
+      "service": "qwen-inference",
+      "signal": "readiness_failures",
+      "value": 9,
+      "threshold": 2,
+      "timestamp": "2026-07-22T02:11:00Z",
+      "fingerprint": "qwen-inference:readiness"
+    },
+    {
+      "source": "quality-probe",
+      "service": "qwen-inference",
+      "signal": "answer_quality_score",
+      "value": 0.93,
+      "threshold": 0.9,
+      "timestamp": "2026-07-22T02:11:10Z",
+      "fingerprint": "qwen-inference:quality"
+    },
+    {
+      "source": "opentelemetry",
+      "service": "qwen-inference",
+      "signal": "p99_ttft_ms",
+      "value": 4010,
+      "threshold": 800,
+      "timestamp": "2026-07-22T02:11:20Z",
+      "fingerprint": "qwen-inference:ttft"
+    }
+  ],
+  "started_at": "2026-07-22T02:10:00Z",
+  "evidence": [
+    {
+      "evidence_id": "EV-001",
+      "kind": "deployment",
+      "source": "model-registry/qwen-serving",
+      "observed_at": "2026-07-22T02:02:00Z",
+      "summary": "canary revision v2 increased max_model_len from 8192 to 32768 and received 30% traffic",
+      "data": {
+        "revision": "qwen-serving-v2",
+        "previous": "qwen-serving-v1"
+      }
+    },
+    {
+      "evidence_id": "EV-002",
+      "kind": "log",
+      "source": "vllm/qwen-serving-v2",
+      "observed_at": "2026-07-22T02:10:05Z",
+      "summary": "KV cache exhausted; request preempted and recomputation scheduled",
+      "data": {
+        "preemptions_5m": 614
+      }
+    },
+    {
+      "evidence_id": "EV-003",
+      "kind": "metric",
+      "source": "prometheus/vllm",
+      "observed_at": "2026-07-22T02:10:30Z",
+      "summary": "KV cache utilization on v2 reached 99%, while v1 remained at 61%",
+      "data": {
+        "v2_kv_cache_pct": 99,
+        "v1_kv_cache_pct": 61
+      }
+    },
+    {
+      "evidence_id": "EV-004",
+      "kind": "trace",
+      "source": "opentelemetry/genai",
+      "observed_at": "2026-07-22T02:10:40Z",
+      "summary": "slow and failed requests are concentrated on the qwen-serving-v2 route",
+      "data": {
+        "v2_failed_trace_share": 0.91
+      }
+    },
+    {
+      "evidence_id": "EV-005",
+      "kind": "metric",
+      "source": "dcgm-exporter",
+      "observed_at": "2026-07-22T02:10:50Z",
+      "summary": "GPU hardware health, temperature, and ECC counters are normal",
+      "data": {
+        "ecc_errors": 0,
+        "temperature_c": 67
+      }
+    },
+    {
+      "evidence_id": "EV-006",
+      "kind": "quality",
+      "source": "golden-probe",
+      "observed_at": "2026-07-22T02:11:10Z",
+      "summary": "answer quality remains above release threshold; incident is performance-only",
+      "data": {
+        "quality_score": 0.93
+      }
+    }
+  ],
+  "hypotheses": [
+    {
+      "cause": "canary max_model_len expansion exhausted v2 KV cache capacity",
+      "confidence": 0.89,
+      "supporting_evidence": [
+        "EV-001",
+        "EV-002",
+        "EV-003",
+        "EV-004"
+      ],
+      "contradicting_evidence": []
+    },
+    {
+      "cause": "GPU hardware degradation",
+      "confidence": 0.23,
+      "supporting_evidence": [],
+      "contradicting_evidence": [
+        "EV-005"
+      ]
+    },
+    {
+      "cause": "model answer-quality regression",
+      "confidence": 0.21,
+      "supporting_evidence": [],
+      "contradicting_evidence": [
+        "EV-006"
+      ]
+    }
+  ],
+  "plan": {
+    "action_id": "ACT-9E09B42554",
+    "action": "rollback_canary_revision",
+    "parameters": {
+      "service": "qwen-inference",
+      "from_revision": "qwen-serving-v2",
+      "to_revision": "qwen-serving-v1",
+      "traffic_step_pct": 10
+    },
+    "risk": "L1-low-reversible",
+    "reversible": true,
+    "rollback_action": "restore qwen-serving-v2 canary traffic to previous percentage",
+    "expected_effect": "error rate < 1%, p99 TTFT < 800 ms, quality score >= 0.90",
+    "idempotency_key": "INC-9E09B42554:rollback_canary_revision:1"
+  },
+  "verification": {
+    "passed": true,
+    "checks": {
+      "error_rate_lt_0.01": true,
+      "p99_ttft_ms_lt_800.0": true,
+      "answer_quality_score_gte_0.9": true
+    },
+    "observed": {
+      "error_rate": 0.003,
+      "p99_ttft_ms": 410.0,
+      "answer_quality_score": 0.94
+    },
+    "reason": "all SLO checks passed"
+  },
+  "trace": [
+    {
+      "actor": "Signal Analyst",
+      "event": "alerts_correlated",
+      "timestamp": "2026-07-22T06:56:46.692965+00:00",
+      "detail": {
+        "received": 7,
+        "unique": 5,
+        "compression_ratio": 1.4
+      }
+    },
+    {
+      "actor": "Incident Commander",
+      "event": "incident_opened",
+      "timestamp": "2026-07-22T06:56:46.693005+00:00",
+      "detail": {}
+    },
+    {
+      "actor": "RCA Investigator",
+      "event": "evidence_collected",
+      "timestamp": "2026-07-22T06:56:46.693072+00:00",
+      "detail": {
+        "evidence_ids": [
+          "EV-001",
+          "EV-002",
+          "EV-003",
+          "EV-004",
+          "EV-005",
+          "EV-006"
+        ]
+      }
+    },
+    {
+      "actor": "RCA Investigator",
+      "event": "root_causes_ranked",
+      "timestamp": "2026-07-22T06:56:46.693134+00:00",
+      "detail": {
+        "top_cause": "canary max_model_len expansion exhausted v2 KV cache capacity",
+        "confidence": 0.89,
+        "evidence": [
+          "EV-001",
+          "EV-002",
+          "EV-003",
+          "EV-004"
+        ]
+      }
+    },
+    {
+      "actor": "Remediation Executor",
+      "event": "remediation_planned",
+      "timestamp": "2026-07-22T06:56:46.693173+00:00",
+      "detail": {
+        "action": "rollback_canary_revision",
+        "risk": "L1-low-reversible",
+        "rollback": "restore qwen-serving-v2 canary traffic to previous percentage"
+      }
+    },
+    {
+      "actor": "Safety Governor",
+      "event": "action_authorization_decided",
+      "timestamp": "2026-07-22T06:56:46.693192+00:00",
+      "detail": {
+        "authorized": true,
+        "risk": "L1-low-reversible",
+        "reversible": true
+      }
+    },
+    {
+      "actor": "RemediationAgent",
+      "event": "action_executed",
+      "timestamp": "2026-07-22T06:56:46.693261+00:00",
+      "detail": {
+        "result": {
+          "status": "applied",
+          "action": "rollback_canary_revision",
+          "changed_at": "2026-07-22T06:56:46.693236+00:00",
+          "state": {
+            "error_rate": 0.003,
+            "p99_ttft_ms": 410,
+            "answer_quality_score": 0.94,
+            "canary_traffic_pct": 0,
+            "pod_restarts": 0
+          }
+        }
+      }
+    },
+    {
+      "actor": "Recovery & Learning",
+      "event": "recovery_verified",
+      "timestamp": "2026-07-22T06:56:46.693357+00:00",
+      "detail": {
+        "passed": true,
+        "observed": {
+          "error_rate": 0.003,
+          "p99_ttft_ms": 410.0,
+          "answer_quality_score": 0.94
+        }
+      }
+    },
+    {
+      "actor": "Incident Commander",
+      "event": "incident_resolved",
+      "timestamp": "2026-07-22T06:56:46.693370+00:00",
+      "detail": {}
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+InferGuard v0.1.0 validation
+Run date: 2026-07-22
+Command: python -m unittest discover -s tests -v
+
+PASS test_alerts_are_deduplicated_in_trace
+PASS test_backend_rejects_non_allowlisted_action
+PASS test_end_to_end_incident_recovers
+PASS test_failed_slo_verification_triggers_rollback
+
+Result: 4 tests passed.
+

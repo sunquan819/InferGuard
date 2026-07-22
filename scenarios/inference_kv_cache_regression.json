@@ -1,0 +1,53 @@
+{
+  "name": "AI inference canary KV cache regression",
+  "alerts": [
+    {"source": "higress", "service": "qwen-inference", "signal": "gateway_5xx_rate", "value": 0.092, "threshold": 0.01, "timestamp": "2026-07-22T02:10:00Z", "fingerprint": "qwen-inference:5xx"},
+    {"source": "higress", "service": "qwen-inference", "signal": "gateway_5xx_rate", "value": 0.088, "threshold": 0.01, "timestamp": "2026-07-22T02:10:30Z", "fingerprint": "qwen-inference:5xx"},
+    {"source": "opentelemetry", "service": "qwen-inference", "signal": "p99_ttft_ms", "value": 4200, "threshold": 800, "timestamp": "2026-07-22T02:10:40Z", "fingerprint": "qwen-inference:ttft"},
+    {"source": "vllm", "service": "qwen-inference", "signal": "kv_cache_preemption_rate", "value": 0.37, "threshold": 0.05, "timestamp": "2026-07-22T02:10:50Z", "fingerprint": "qwen-inference:kv-preemption"},
+    {"source": "kubernetes", "service": "qwen-inference", "signal": "readiness_failures", "value": 9, "threshold": 2, "timestamp": "2026-07-22T02:11:00Z", "fingerprint": "qwen-inference:readiness"},
+    {"source": "quality-probe", "service": "qwen-inference", "signal": "answer_quality_score", "value": 0.93, "threshold": 0.9, "timestamp": "2026-07-22T02:11:10Z", "fingerprint": "qwen-inference:quality"},
+    {"source": "opentelemetry", "service": "qwen-inference", "signal": "p99_ttft_ms", "value": 4010, "threshold": 800, "timestamp": "2026-07-22T02:11:20Z", "fingerprint": "qwen-inference:ttft"}
+  ],
+  "runtime_state": {
+    "error_rate": 0.092,
+    "p99_ttft_ms": 4200,
+    "answer_quality_score": 0.93,
+    "canary_traffic_pct": 30,
+    "pod_restarts": 0
+  },
+  "evidence": [
+    {"kind": "deployment", "source": "model-registry/qwen-serving", "observed_at": "2026-07-22T02:02:00Z", "summary": "canary revision v2 increased max_model_len from 8192 to 32768 and received 30% traffic", "data": {"revision": "qwen-serving-v2", "previous": "qwen-serving-v1"}},
+    {"kind": "log", "source": "vllm/qwen-serving-v2", "observed_at": "2026-07-22T02:10:05Z", "summary": "KV cache exhausted; request preempted and recomputation scheduled", "data": {"preemptions_5m": 614}},
+    {"kind": "metric", "source": "prometheus/vllm", "observed_at": "2026-07-22T02:10:30Z", "summary": "KV cache utilization on v2 reached 99%, while v1 remained at 61%", "data": {"v2_kv_cache_pct": 99, "v1_kv_cache_pct": 61}},
+    {"kind": "trace", "source": "opentelemetry/genai", "observed_at": "2026-07-22T02:10:40Z", "summary": "slow and failed requests are concentrated on the qwen-serving-v2 route", "data": {"v2_failed_trace_share": 0.91}},
+    {"kind": "metric", "source": "dcgm-exporter", "observed_at": "2026-07-22T02:10:50Z", "summary": "GPU hardware health, temperature, and ECC counters are normal", "data": {"ecc_errors": 0, "temperature_c": 67}},
+    {"kind": "quality", "source": "golden-probe", "observed_at": "2026-07-22T02:11:10Z", "summary": "answer quality remains above release threshold; incident is performance-only", "data": {"quality_score": 0.93}}
+  ],
+  "diagnosis": {
+    "hypotheses": [
+      {"cause": "canary max_model_len expansion exhausted v2 KV cache capacity", "base_confidence": 0.73, "supporting_evidence": ["EV-001", "EV-002", "EV-003", "EV-004"], "contradicting_evidence": []},
+      {"cause": "GPU hardware degradation", "base_confidence": 0.26, "supporting_evidence": [], "contradicting_evidence": ["EV-005"]},
+      {"cause": "model answer-quality regression", "base_confidence": 0.24, "supporting_evidence": [], "contradicting_evidence": ["EV-006"]}
+    ]
+  },
+  "remediation": {
+    "version": "1",
+    "action": "rollback_canary_revision",
+    "parameters": {"service": "qwen-inference", "from_revision": "qwen-serving-v2", "to_revision": "qwen-serving-v1", "traffic_step_pct": 10},
+    "risk": "L1-low-reversible",
+    "reversible": true,
+    "rollback_action": "restore qwen-serving-v2 canary traffic to previous percentage",
+    "expected_effect": "error rate < 1%, p99 TTFT < 800 ms, quality score >= 0.90",
+    "effect": {"error_rate": 0.003, "p99_ttft_ms": 410, "answer_quality_score": 0.94, "canary_traffic_pct": 0}
+  },
+  "slo": {
+    "error_rate": {"operator": "lt", "target": 0.01},
+    "p99_ttft_ms": {"operator": "lt", "target": 800},
+    "answer_quality_score": {"operator": "gte", "target": 0.9}
+  },
+  "learning": {
+    "preventive_action": "Add a pre-release capacity check that estimates KV cache concurrency whenever max_model_len changes.",
+    "runbook_candidate": "When TTFT and preemption regress only on a canary route while GPU health is normal, drain canary traffic in 10% steps, restore the last-known-good revision, and verify both performance and answer quality SLOs."
+  }
+}
