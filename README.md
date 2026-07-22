@@ -6,10 +6,6 @@ InferGuard 将网关、推理引擎、GPU、Kubernetes、Trace 和质量探针�
 
 当前版本是初赛可验证 PoC：零外部依赖、零云密钥，使用确定性仿真工具跑通完整链路。工具边界与未来 MCP Server 保持一致，后续可替换为 Higress、vLLM、Prometheus、Kubernetes 和 AgentLoop。
 
-## 为什么不是官方示例复刻
-
-参赛手册附录使用通用订单服务连接池故障作为示例。InferGuard 聚焦 AI 推理服务特有问题：模型灰度发布、KV Cache 容量、TTFT、GPU 健康与回答质量的联合判断。修复后不仅验证错误率和延迟，还必须验证答案质量没有退化。
-
 ## 当前 Demo
 
 场景：`qwen-serving-v2` 灰度版本把 `max_model_len` 从 8192 提升到 32768，KV Cache 达到 99%，导致请求抢占、TTFT 和 5xx 激增。系统确认 GPU 硬件正常、质量没有退化，并将失败 Trace 与 v2 路由对齐后，按策略回切灰度流量至 v1；最后验证错误率、TTFT 和质量分数。
@@ -59,4 +55,3 @@ artifacts/                   可复现运行证据（默认不提交生成物）
 ## 开放计划
 
 计划以 Apache-2.0 开放 Agent Identity、Skill 契约、MCP 工具 Schema、仿真事故数据集、评测脚本和部署说明。仿真数据为团队原创，不含真实用户数据、企业日志或个人信息。
-
