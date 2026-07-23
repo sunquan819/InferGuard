@@ -36,6 +36,19 @@ Live mode starts the official `mcp-server-datahub` process and records every MCP
 
 See [DataHub integration](docs/datahub-integration.md) for the architecture, safety boundary, and live setup.
 
+## Project media
+
+![InferGuard DataOps](docs/project-media/01-inferguard-cover.png)
+
+| Incident story | Live MCP verification |
+|---|---|
+| ![Schema change to downstream impact](docs/project-media/03-schema-change-impact.png) | ![Live DataHub MCP evidence and verified recovery](docs/project-media/04-live-mcp-verification.png) |
+
+Additional gallery assets:
+
+- [Multi-agent architecture](docs/project-media/02-agent-architecture.png)
+- [Live DataHub lineage](docs/project-media/05-datahub-lineage.png)
+
 ## 原始 InferGuard 能力
 
 **面向 AI 推理服务的可验证、可回滚零人工运维多 Agent 系统。**
